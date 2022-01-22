@@ -9,10 +9,8 @@ let words = JSON.parse(raw);
 var length = 0;
 for (var word in words) if (words.hasOwnProperty(word)) length++;
 function generateWord() {
-  var randInt = getRandomInt(length - 1);
+  var randInt = getRandomInt(length);
   let chosenWord = JSON.stringify(words[randInt].Word).replaceAll('"', "");
-  console.log(chosenWord);
-
   return chosenWord;
 }
 
@@ -23,29 +21,45 @@ function getRandomInt(max) {
 //SOCKETS
 const app = express();
 const server = require("http").createServer(app);
-const io = require("socket.io")(server, { cors: { origin: "*" } });
+const io = require("socket.io")(server, {
+  cors: { origin: "*" },
+  upgrade: false,
+});
 var users = [];
 
 const PORT = process.env.PORT || 8123;
-server.listen(PORT,  console.log(`Server started on port ${PORT}`));
+server.listen(PORT, console.log(`Server started on port ${PORT}`));
 
-app.get('/', (req, res) => {
-    res.send("Access denied");
-   });
+app.get("/", (req, res) => {
+  res.send("Access denied");
+});
 
-io.on("connection", function (socket) {
+io.on("connection", (socket) => {
+  console.log("||---CONNECTED---||");
   var word = generateWord();
   var arr_data = { socket: socket, word: word, word_length: word.length };
-  console.log(word);
-  console.log(word.length);
+  var result = [];
+
+  console.log("word :", word);
+  console.log("length :", arr_data.word_length);
+
   users.push(arr_data);
-  io.sockets.emit("new user", word.length);
-  socket.on("new user", data=>{
-      console.log(data);
+  io.sockets.emit("new user", users[users.indexOf(arr_data)].word.length);
+  const chars = users[users.indexOf(arr_data)].word.split("");
+
+  socket.on("sendLetter", function (letter) {
+    console.log("letter :", letter);
+    chars.forEach((l, index) => (l === letter ? result.push(index) : null));
+    console.log(result);
   });
-  socket.on("disconnect", function (data) {
-    users.splice(users.indexOf(arr_data), 1);
+
+  io.sockets.emit("Letters guessed", result);
+
+  socket.on("disconnect", (data) => {
+    users.splice(users.indexOf(data), 1);
     io.sockets.emit("user left");
+    console.log("||---END OF SESSION---||");
   });
-  io.to(socket.id).emit(word.length);
+
+  io.to(socket.id).emit(users[users.indexOf(arr_data)].word_length);
 });
