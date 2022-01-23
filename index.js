@@ -7,10 +7,8 @@ const { networkInterfaces } = require("os");
 let raw = fs.readFileSync("words.json");
 let words = JSON.parse(raw);
 
-var length = 0;
-for (var word in words) if (words.hasOwnProperty(word)) length++;
 function generateWord() {
-  var randInt = getRandomInt(length);
+  var randInt = getRandomInt(words.length);
   let chosenWord = JSON.stringify(words[randInt].Word).replaceAll('"', "");
   return chosenWord;
 }
@@ -35,14 +33,18 @@ app.get("/", (req, res) => {
   res.send("Access denied");
 });
 
-io.on("connection", (socket) => {
+io.on("connection", function(socket) {
+  console.log(users);
   console.log("||---CONNECTED---||");
   var word = generateWord();
-  var arr_data = { socket: socket, word: word, word_length: word.length };
-  //{ indexes: guessedIndexes, correct: guessedLetters, wrong: wrongLetters };
-  var arr_game = { indexes: [], correct: [], wrong: [], stage: 11 };
+  var arr_data = { correct: [], socket: socket, word: word, word_length: word.length };
+  var arr_game = { correct: [], wrong: [], lettersFoundCount: 0, stage: 11 };
+  var wordFill = Array(arr_data.word_length);
   var temp = [];
-
+  wordFill.fill(" ");
+  arr_data.correct = wordFill;
+  arr_game.correct = wordFill;
+  console.log("wordfill :", wordFill);
   console.log("word :", word);
   console.log("length :", arr_data.word_length);
 
@@ -52,36 +54,35 @@ io.on("connection", (socket) => {
 
   const chars = users[users.indexOf(arr_data)].word.split("");
 
-  socket.on("sendLetter", function (letter) {
+  socket.on("sendLetter", function(letter) {
     temp = [];
     console.log("letter :", letter);
-    chars.forEach((l, index) => (l === letter ? temp.push(index) : null));
-    console.log(temp);
+    chars.forEach((charLetter, index) => (charLetter == letter ? (temp.push(charLetter), wordFill[index]=charLetter) : null));
+    console.log(wordFill);
+    console.log(arr_game.lettersFoundCount);
     if (temp.length > 0) {
-      arr_game.indexes.push(temp);
-      arr_game.correct.push(letter);
+      arr_game.correct = wordFill;
+      arr_game.lettersFoundCount += temp.length;
     } else {
       arr_game.wrong.push(letter);
       arr_game.stage -= 1;
     }
-    console.log(arr_game);
-    io.sockets.emit("sendAnswer", arr_game);
+    io.to(socket.id).emit("sendAnswer", arr_game);
   });
   socket.on("startGame", function (newGame) {
+    console.log(socket.id);
     console.log("startgame function");
-    if (newGame == true) {
+    if (newGame) {
       arr_game.stage = 10;
-      io.sockets.emit("sendAnswer", arr_game);
+      io.to(socket.id).emit("sendAnswer", arr_game);
     }else{
       arr_game.stage = 11;
-      io.sockets.emit("sendAnswer", arr_game);
+      io.to(socket.id).emit("sendAnswer", arr_game);
     }
   });
-  io.sockets.emit("sendAnswer", arr_game);
+  io.to(socket.id).emit("sendAnswer", arr_game);
   socket.on("disconnect", (data) => {
-    users.splice(users.indexOf(data), 1);
+    users.splice(users.indexOf(socket), 1);
     io.sockets.emit("user left");
-    console.log("||---END OF SESSION---||");
   });
-  io.to(socket.id).emit(users[users.indexOf(arr_data)].word_length);
 });
