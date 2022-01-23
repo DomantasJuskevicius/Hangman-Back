@@ -34,8 +34,8 @@ app.get("/", (req, res) => {
 });
 
 io.on("connection", function(socket) {
-  console.log(users);
-  console.log("||---CONNECTED---||");
+  // console.log(users);
+  // console.log("||---CONNECTED---||");
   var word = generateWord();
   var arr_data = { correct: [], socket: socket, word: word, word_length: word.length };
   var arr_game = { correct: [], wrong: [], lettersFoundCount: 0, stage: 11 };
@@ -44,9 +44,9 @@ io.on("connection", function(socket) {
   wordFill.fill(" ");
   arr_data.correct = wordFill;
   arr_game.correct = wordFill;
-  console.log("wordfill :", wordFill);
-  console.log("word :", word);
-  console.log("length :", arr_data.word_length);
+  // console.log("wordfill :", wordFill);
+  // console.log("word :", word);
+  // console.log("length :", arr_data.word_length);
 
   users.push(arr_data);
 
@@ -56,10 +56,10 @@ io.on("connection", function(socket) {
 
   socket.on("sendLetter", function(letter) {
     temp = [];
-    console.log("letter :", letter);
+    // console.log("letter :", letter);
     chars.forEach((charLetter, index) => (charLetter == letter ? (temp.push(charLetter), wordFill[index]=charLetter) : null));
-    console.log(wordFill);
-    console.log(arr_game.lettersFoundCount);
+    // console.log(wordFill);
+    // console.log(arr_game.lettersFoundCount);
     if (temp.length > 0) {
       arr_game.correct = wordFill;
       arr_game.lettersFoundCount += temp.length;
@@ -70,8 +70,8 @@ io.on("connection", function(socket) {
     io.to(socket.id).emit("sendAnswer", arr_game);
   });
   socket.on("startGame", function (newGame) {
-    console.log(socket.id);
-    console.log("startgame function");
+    // console.log(socket.id);
+    // console.log("startgame function");
     if (newGame) {
       arr_game.stage = 10;
       io.to(socket.id).emit("sendAnswer", arr_game);
