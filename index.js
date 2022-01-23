@@ -1,6 +1,7 @@
 const fs = require("fs");
 const express = require("express");
 const { Socket } = require("engine.io");
+const { networkInterfaces } = require("os");
 
 // Read JSON
 let raw = fs.readFileSync("words.json");
@@ -38,28 +39,49 @@ io.on("connection", (socket) => {
   console.log("||---CONNECTED---||");
   var word = generateWord();
   var arr_data = { socket: socket, word: word, word_length: word.length };
-  var result = [];
+  //{ indexes: guessedIndexes, correct: guessedLetters, wrong: wrongLetters };
+  var arr_game = { indexes: [], correct: [], wrong: [], stage: 11 };
+  var temp = [];
 
   console.log("word :", word);
   console.log("length :", arr_data.word_length);
 
   users.push(arr_data);
+
   io.sockets.emit("new user", users[users.indexOf(arr_data)].word.length);
+
   const chars = users[users.indexOf(arr_data)].word.split("");
 
   socket.on("sendLetter", function (letter) {
+    temp = [];
     console.log("letter :", letter);
-    chars.forEach((l, index) => (l === letter ? result.push(index) : null));
-    console.log(result);
+    chars.forEach((l, index) => (l === letter ? temp.push(index) : null));
+    console.log(temp);
+    if (temp.length > 0) {
+      arr_game.indexes.push(temp);
+      arr_game.correct.push(letter);
+    } else {
+      arr_game.wrong.push(letter);
+      arr_game.stage -= 1;
+    }
+    console.log(arr_game);
+    io.sockets.emit("sendAnswer", arr_game);
   });
-
-  io.sockets.emit("Letters guessed", result);
-
+  socket.on("startGame", function (newGame) {
+    console.log("startgame function");
+    if (newGame == true) {
+      arr_game.stage = 10;
+      io.sockets.emit("sendAnswer", arr_game);
+    }else{
+      arr_game.stage = 11;
+      io.sockets.emit("sendAnswer", arr_game);
+    }
+  });
+  io.sockets.emit("sendAnswer", arr_game);
   socket.on("disconnect", (data) => {
     users.splice(users.indexOf(data), 1);
     io.sockets.emit("user left");
     console.log("||---END OF SESSION---||");
   });
-
   io.to(socket.id).emit(users[users.indexOf(arr_data)].word_length);
 });
